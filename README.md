@@ -7,6 +7,7 @@
 ## 📋 Table of Contents
 
 - [Overview](#-overview)
+- [Motivation & Use Cases](#-motivation--use-cases)
 - [Tech Stack](#-tech-stack)
 - [Quick Start](#-quick-start)
 - [API Endpoints](#-api-endpoints)
@@ -29,6 +30,100 @@ GithubUtility is an intelligent PR auditing system that helps teams track pull r
 - 🔌 Pluggable architecture for connectors and storage
 - 🔒 Enterprise-ready authentication with Azure AD
 - 🌐 MCP (Model Context Protocol) integration
+
+---
+
+## 💡 Motivation & Use Cases
+
+### Why GithubUtility?
+
+As organizations scale their engineering teams and repositories, maintaining visibility into pull request activity, review processes, and release readiness becomes increasingly challenging. Manual tracking is time-consuming, error-prone, and doesn't scale. GithubUtility was built to solve these pain points by providing automated, intelligent insights into your GitHub workflow.
+
+**The Problem:**
+- 📊 **Lack of Visibility** - No centralized view of PR status across multiple repositories
+- ⏱️ **Time-Consuming Audits** - Manual PR reviews and compliance checks take hours
+- 🔍 **Inconsistent Reporting** - Different teams use different tools and formats
+- 📈 **Scalability Issues** - Traditional methods break down with large teams
+- 🎯 **Governance Gaps** - Difficult to enforce review policies and track compliance
+
+### Practical Use Cases
+
+#### 1. **Release Readiness Audits**
+Before deploying to production, teams need to ensure all PRs are properly reviewed, approved, and tested. GithubUtility provides instant visibility into:
+- Open PRs that might block a release
+- PRs missing required approvals
+- PRs with failing CI/CD checks
+- Review activity and bottlenecks
+
+**Example:** *"Show me all PRs in the release branch that are missing approvals from the security team"*
+
+#### 2. **Compliance & Governance**
+Organizations with strict compliance requirements (SOC 2, ISO 27001, HIPAA) need audit trails and evidence of code review processes. GithubUtility helps:
+- Track review completion rates
+- Identify PRs that bypassed required reviewers
+- Generate audit reports for compliance reviews
+- Monitor adherence to branch protection policies
+
+**Example:** *"Generate a compliance report showing all PRs merged last quarter with their review status"*
+
+#### 3. **Team Performance & Bottleneck Identification**
+Engineering managers can use GithubUtility to:
+- Identify teams with high PR backlogs
+- Find reviewers who are overloaded
+- Track average PR review times
+- Discover process bottlenecks
+
+**Example:** *"Which repositories have the longest average PR review time?"*
+
+#### 4. **Cross-Organization Visibility**
+For organizations with multiple teams, repositories, or business units:
+- Centralized dashboard across all repositories
+- Cross-team collaboration insights
+- Organization-wide release coordination
+- Unified reporting for leadership
+
+**Example:** *"Show me all open PRs across all repositories in the 'platform' organization"*
+
+#### 5. **Onboarding & Knowledge Sharing**
+New team members can quickly understand:
+- Active work streams and PRs
+- Team review patterns and expectations
+- Repository activity and health
+- Historical context through natural language queries
+
+**Example:** *"What PRs are currently being worked on by the backend team?"*
+
+### Organizational Benefits
+
+#### 🔒 **Auditing & Governance**
+- **Automated Compliance Tracking** - Continuous monitoring of review policies and requirements
+- **Audit Trail Generation** - Historical records of all PR activity for regulatory compliance
+- **Policy Enforcement Visibility** - Identify violations of branch protection rules or review requirements
+- **Risk Mitigation** - Early detection of PRs that don't meet organizational standards
+
+#### 📊 **Data-Driven Decision Making**
+- **Metrics & Analytics** - Quantify team performance, review efficiency, and release velocity
+- **Trend Analysis** - Identify patterns in PR activity, review times, and bottlenecks
+- **Resource Planning** - Data to inform staffing decisions and team structure
+- **Process Improvement** - Evidence-based insights to optimize workflows
+
+#### ⚡ **Operational Efficiency**
+- **Time Savings** - Eliminate manual PR tracking and report generation
+- **Reduced Context Switching** - Single interface for all PR-related queries
+- **Natural Language Interface** - No need to learn complex query languages or APIs
+- **Automated Reporting** - Scheduled reports for stakeholders and leadership
+
+#### 🌐 **Cross-Team Collaboration**
+- **Unified View** - Single source of truth across all repositories and teams
+- **Improved Communication** - Clear visibility into what teams are working on
+- **Release Coordination** - Better alignment for cross-team releases
+- **Knowledge Sharing** - Easy discovery of relevant PRs and discussions
+
+#### 🎯 **Scalability**
+- **Multi-Repository Support** - Scale from single repo to hundreds of repositories
+- **Enterprise Architecture** - Built for organizations of any size
+- **Flexible Storage** - Choose the right database for your scale (SQLite to SQL Server)
+- **Cloud-Ready** - Deploy to Azure with enterprise authentication and security
 
 ---
 
