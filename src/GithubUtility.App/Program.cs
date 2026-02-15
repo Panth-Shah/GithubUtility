@@ -3,6 +3,7 @@ using System.Diagnostics.Metrics;
 using System.Security.Claims;
 using GithubUtility.App.Agents;
 using GithubUtility.App.Connectors;
+using GithubUtility.App.Endpoints;
 using GithubUtility.App.Infrastructure;
 using GithubUtility.App.Options;
 using GithubUtility.App.Services;
@@ -337,157 +338,15 @@ try
     }))
         .AllowAnonymous();
 
-    app.MapPost("/api/ingestion/run", async (
-        IPrAuditOrchestrator orchestrator, 
-        Meter meter,
-        ActivitySource activitySource,
-        CancellationToken cancellationToken) =>
-    {
-        using var activity = activitySource.StartActivity("Ingestion Run");
-        var startTime = Stopwatch.GetTimestamp();
-        
-        try
-        {
-            var result = await orchestrator.RunIngestionAsync(cancellationToken);
-            
-            var elapsedMs = Stopwatch.GetElapsedTime(startTime).TotalMilliseconds;
-            
-            var counter = meter.CreateCounter<int>("ingestion.runs");
-            counter.Add(1);
-            
-            var durationHist = meter.CreateHistogram<double>("ingestion.duration");
-            durationHist.Record(elapsedMs);
-            
-            var prCounter = meter.CreateCounter<int>("ingestion.prs_processed");
-            prCounter.Add(result.PullRequestCount);
-            
-            activity?.SetTag("repos_processed", result.RepositoryCount);
-            activity?.SetTag("prs_processed", result.PullRequestCount);
-            activity?.SetTag("errors", result.ErrorCount);
-            
-            return Results.Ok(result);
-        }
-        catch (Exception ex)
-        {
-            activity?.SetTag("error", true);
-            activity?.SetTag("exception.message", ex.Message);
-            throw;
-        }
-    })
-    .WithName("RunIngestion")
-    .WithTags("Ingestion")
-    .WithOpenApi(operation =>
-    {
-        operation.Summary = "Trigger manual ingestion";
-        operation.Description = "Manually triggers the PR ingestion process for all configured repositories";
-        return operation;
-    })
-    .RequireRateLimiting("ingestion");
+    // Map API endpoints using route groups
+    var ingestionGroup = app.MapGroup("/api/ingestion");
+    ingestionGroup.MapIngestionEndpoints();
 
-    app.MapGet("/api/reports/open-prs", async (
-        string? repository,
-        int? olderThanDays,
-        IPrAuditOrchestrator orchestrator,
-        CancellationToken cancellationToken) =>
-    {
-        var report = await orchestrator.GetOpenPrReportAsync(repository, olderThanDays ?? 0, cancellationToken);
-        return Results.Ok(report);
-    })
-    .WithName("GetOpenPRs")
-    .WithTags("Reports")
-    .WithOpenApi(operation =>
-    {
-        operation.Summary = "Get open pull requests report";
-        operation.Description = "Returns a list of open pull requests, optionally filtered by repository and age";
-        return operation;
-    })
-    .RequireRateLimiting("api");
+    var reportsGroup = app.MapGroup("/api/reports");
+    reportsGroup.MapReportsEndpoints();
 
-    app.MapGet("/api/reports/user-stats", async (
-        DateTimeOffset? from,
-        DateTimeOffset? to,
-        IPrAuditOrchestrator orchestrator,
-        CancellationToken cancellationToken) =>
-    {
-        var toValue = to ?? DateTimeOffset.UtcNow;
-        var fromValue = from ?? toValue.AddDays(-30);
-
-        var report = await orchestrator.GetUserStatsAsync(fromValue, toValue, cancellationToken);
-        return Results.Ok(report);
-    })
-    .WithName("GetUserStats")
-    .WithTags("Reports")
-    .WithOpenApi(operation =>
-    {
-        operation.Summary = "Get user statistics";
-        operation.Description = "Returns PR and review statistics per user for a given date range";
-        return operation;
-    })
-    .RequireRateLimiting("api");
-
-    app.MapGet("/api/reports/release-summary", async (
-        DateTimeOffset? from,
-        DateTimeOffset? to,
-        IPrAuditOrchestrator orchestrator,
-        CancellationToken cancellationToken) =>
-    {
-        var toValue = to ?? DateTimeOffset.UtcNow;
-        var fromValue = from ?? toValue.AddDays(-30);
-
-        var summary = await orchestrator.GetReleaseAuditSummaryAsync(fromValue, toValue, cancellationToken);
-        return Results.Ok(summary);
-    })
-    .WithName("GetReleaseSummary")
-    .WithTags("Reports")
-    .WithOpenApi(operation =>
-    {
-        operation.Summary = "Get release audit summary";
-        operation.Description = "Returns aggregated statistics about PRs for release auditing purposes";
-        return operation;
-    })
-    .RequireRateLimiting("api");
-
-    app.MapGet("/api/reports/repositories", async (
-        DateTimeOffset? from,
-        DateTimeOffset? to,
-        IPrAuditOrchestrator orchestrator,
-        CancellationToken cancellationToken) =>
-    {
-        var toValue = to ?? DateTimeOffset.UtcNow;
-        var fromValue = from ?? toValue.AddDays(-30);
-
-        var report = await orchestrator.GetRepositoryReportAsync(fromValue, toValue, cancellationToken);
-        return Results.Ok(report);
-    })
-    .WithName("GetRepositoryReport")
-    .WithTags("Reports")
-    .WithOpenApi(operation =>
-    {
-        operation.Summary = "Get repository report";
-        operation.Description = "Returns PR statistics grouped by repository for a given date range";
-        return operation;
-    })
-    .RequireRateLimiting("api");
-
-    app.MapPost("/api/chat/query", async (ChatRequest request, IPrAuditChatAgent agent, CancellationToken cancellationToken) =>
-    {
-        if (string.IsNullOrWhiteSpace(request.Query))
-        {
-            return Results.BadRequest(new { Error = "Query is required." });
-        }
-
-        var response = await agent.HandleAsync(request, cancellationToken);
-        return Results.Ok(response);
-    })
-    .WithName("ChatQuery")
-    .WithTags("Chat")
-    .WithOpenApi(operation =>
-    {
-        operation.Summary = "Query the AI chat agent";
-        operation.Description = "Ask natural language questions about pull requests using the AI-powered chat agent";
-        return operation;
-    })
-    .RequireRateLimiting("chat");
+    var chatGroup = app.MapGroup("/api/chat");
+    chatGroup.MapChatEndpoints();
 
     app.Run();
 }
