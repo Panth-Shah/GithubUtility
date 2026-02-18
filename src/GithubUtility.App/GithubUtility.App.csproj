@@ -5,6 +5,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="..\..\appsettings.Production.json">
+      <Link>appsettings.Production.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.Agents.AI.GitHub.Copilot" Version="1.0.0-preview.260128.1" />
     <PackageReference Include="Microsoft.Identity.Web" Version="2.15.0" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.0" />

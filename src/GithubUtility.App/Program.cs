@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Security.Claims;
 using GithubUtility.App.Agents;
@@ -60,6 +60,11 @@ try
 
     builder.Services.AddOptions<AzureAdOptions>()
         .Bind(builder.Configuration.GetSection(AzureAdOptions.SectionName))
+        .ValidateDataAnnotations()
+        .ValidateOnStart();
+
+    builder.Services.AddOptions<CopilotOptions>()
+        .Bind(builder.Configuration.GetSection(CopilotOptions.SectionName))
         .ValidateDataAnnotations()
         .ValidateOnStart();
 

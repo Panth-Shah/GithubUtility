@@ -28,9 +28,16 @@ param sqlAdminUsername string
 @secure()
 param sqlAdminPassword string
 
-@description('GitHub MCP API Key')
+@description('GitHub MCP API Key (PAT with repo read permission — used by the ingestion connector)')
 @secure()
 param githubMcpApiKey string
+
+@description('GitHub Personal Access Token with Copilot Requests (read+write) permission — used by the @github/copilot CLI inside the container')
+@secure()
+param githubCopilotToken string
+
+@description('Model passed to each GitHub Copilot CLI session (e.g. gpt-4o, claude-sonnet-4-5)')
+param copilotModel string = 'gpt-4o'
 
 var keyVaultName = 'kv-${appName}-${environment}'
 var sqlServerName = 'sql-${appName}-${environment}'
@@ -132,12 +139,21 @@ resource sqlConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01
   }
 }
 
-// GitHub MCP API Key Secret
+// GitHub MCP API Key Secret (ingestion connector)
 resource githubMcpApiKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   parent: keyVault
   name: 'GitHubConnector--Mcp--ApiKey'
   properties: {
     value: githubMcpApiKey
+  }
+}
+
+// GitHub Copilot Token Secret (@github/copilot CLI authentication)
+resource githubCopilotTokenSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'GitHubCopilotToken'
+  properties: {
+    value: githubCopilotToken
   }
 }
 
@@ -224,6 +240,11 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
           keyVaultUrl: '${keyVault.properties.vaultUri}secrets/GitHubConnector--Mcp--ApiKey'
           identity: 'system'
         }
+        {
+          name: 'github-copilot-token'
+          keyVaultUrl: '${keyVault.properties.vaultUri}secrets/GitHubCopilotToken'
+          identity: 'system'
+        }
       ]
     }
     template: {
@@ -268,6 +289,21 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
               name: 'GitHubConnector__Mcp__ApiKey'
               secretRef: 'github-mcp-api-key'
             }
+            // GitHub Copilot CLI authentication — forwarded into the CLI subprocess
+            // by CopilotClientOptions.Environment at runtime
+            {
+              name: 'GITHUB_TOKEN'
+              secretRef: 'github-copilot-token'
+            }
+            // Copilot CLI settings — match CopilotOptions section names
+            {
+              name: 'Copilot__CliPath'
+              value: 'copilot'
+            }
+            {
+              name: 'Copilot__Model'
+              value: copilotModel
+            }
             {
               name: 'ApplicationInsights__InstrumentationKey'
               value: appInsights.properties.InstrumentationKey
@@ -278,8 +314,10 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
             }
           ]
           resources: {
-            cpu: json('1.0')
-            memory: '2Gi'
+            // 2 vCPU / 4 Gi — the .NET app + Node.js @github/copilot CLI subprocess
+            // run concurrently; 1 vCPU / 2 Gi was too constrained under load
+            cpu: json('2.0')
+            memory: '4Gi'
           }
         }
       ]

@@ -27,9 +27,12 @@ Azure Key Vault (Secrets)
 - Azure subscription with appropriate permissions
 - GitHub organization account
 - Azure CLI installed and configured
-- .NET 8 SDK installed locally
 - Docker Desktop (for container builds)
-- GitHub repository access
+- **GitHub Personal Access Token (fine-grained)** with:
+  - **Copilot Requests** (read + write) — used by the `@github/copilot` CLI inside the container to authenticate with GitHub Copilot
+  - `repo` read — used by the MCP ingestion connector
+
+> **How the Copilot CLI runs:** The Docker image installs Node.js 22 LTS and `npm install -g @github/copilot` at build time. The `GITHUB_TOKEN` env var is passed from the host/ACA secret into the CLI subprocess by `CopilotClientOptions.Environment` — it is never stored in the image itself.
 
 ## Step 1: Azure Infrastructure Setup
 
@@ -253,6 +256,7 @@ docker build -t githubutility:latest .
 
 ```bash
 docker run -p 8080:8080 \
+  -e GITHUB_TOKEN="ghp_xxxxxxxxxxxxxxxxxxxx" \
   -e AzureAd__TenantId="<tenant-id>" \
   -e AzureAd__ClientId="<client-id>" \
   -e AzureAd__ClientSecret="<client-secret>" \
@@ -293,7 +297,18 @@ az acr build \
   --file Dockerfile .
 ```
 
-### 5.4 Create Container App
+### 5.4 Store the GitHub Copilot Token in Key Vault
+
+The container needs a GitHub PAT with **Copilot Requests** permission to authenticate the `@github/copilot` CLI that runs inside it.
+
+```bash
+az keyvault secret set \
+  --vault-name kv-githubutility-prod \
+  --name "GitHubCopilotToken" \
+  --value "<your-github-pat-with-copilot-requests-permission>"
+```
+
+### 5.5 Create Container App
 
 ```bash
 # Get ACR credentials
@@ -301,6 +316,8 @@ ACR_USERNAME=$(az acr credential show --name acrgithubutility --query username -
 ACR_PASSWORD=$(az acr credential show --name acrgithubutility --query passwords[0].value -o tsv)
 
 # Create Container App
+# Note: GITHUB_TOKEN is required — the Copilot CLI inside the container uses it for auth.
+#       Supply it via a Key Vault secret reference, never as a plain-text env var in CI/CD.
 az containerapp create \
   --name ca-githubutility-prod \
   --resource-group rg-githubutility-prod \
@@ -315,7 +332,11 @@ az containerapp create \
   --memory 2.0Gi \
   --min-replicas 1 \
   --max-replicas 3 \
+  --secrets "github-copilot-token=keyvaultref:https://kv-githubutility-prod.vault.azure.net/secrets/GitHubCopilotToken,identityref:<managed-identity-id>" \
   --env-vars \
+    "GITHUB_TOKEN=secretref:github-copilot-token" \
+    "Copilot__CliPath=copilot" \
+    "Copilot__Model=gpt-4o" \
     "AzureAd__Instance=https://login.microsoftonline.com/" \
     "AzureAd__TenantId=<tenant-id>" \
     "AzureAd__ClientId=<client-id>" \

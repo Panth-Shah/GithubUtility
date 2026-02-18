@@ -36,11 +36,14 @@ ChatResponse
   - Returns `ChatResponse` with agent's answer
 
 ### CopilotClient
-- **Package:** `Microsoft.Agents.AI.GitHub.Copilot`
-- **Responsibilities:**
-  - Connects to GitHub Copilot service
-  - Automatically discovers MCP servers
-  - Provides `AIAgent` interface for the Agent Framework
+- **Package:** `GitHub.Copilot.SDK` (transitively included by `Microsoft.Agents.AI.GitHub.Copilot`)
+- **How it works:**
+  - Wraps the **`@github/copilot` npm CLI binary** as a child process
+  - At startup it calls `CopilotClientOptions.CliPath` (default: `"copilot"` on PATH) to launch the CLI server
+  - Communicates over stdio (default) or TCP
+  - The CLI authenticates with GitHub using the `GITHUB_TOKEN` environment variable, which `CopilotClientOptions.Environment` forwards from the host into the subprocess
+  - Automatically discovers MCP servers and provides the `AIAgent` interface for the Agent Framework
+- **Deployment note:** Because the CLI is an npm package, the Docker image installs **Node.js 22 LTS** and `@github/copilot` at build time — no separate installation is needed on the Azure Container Apps host
 
 ### AIAgent (Microsoft Agent Framework)
 - **Package:** `Microsoft.Agents.AI`
@@ -83,9 +86,9 @@ The agent can use any tools exposed by connected MCP servers. For GitHub operati
 
 2. **Agent builds intent** - Combines query with context (dates, repository)
 
-3. **Agent creates session** - New conversation session for this request
+3. **Agent creates session** - New conversation session for this request via `_agent.GetNewSessionAsync()`
 
-4. **Agent plans execution** - Framework analyzes intent and available tools
+4. **Agent runs with message** - `_agent.RunAsync(userIntent, session, options, ct)` sends the user message and triggers planning
 
 5. **Agent executes tools** - Calls MCP tools as needed (multi-step if required)
 
@@ -95,13 +98,29 @@ The agent can use any tools exposed by connected MCP servers. For GitHub operati
 
 ## Configuration
 
-No special configuration required for the agent. MCP servers are automatically discovered by the GitHub Copilot SDK.
+The agent is configured via the `Copilot` section in `appsettings.json`, bound to `CopilotOptions`:
 
-**Important:** The `GitHubConnector:Mcp` configuration in `appsettings.json` is used by the **ingestion worker** (`McpGitHubDataSource`), NOT by the chat agent. The chat agent uses Copilot SDK's automatic MCP server discovery.
+```json
+{
+  "Copilot": {
+    "CliPath": "copilot",
+    "CliUrl": "",
+    "GitHubTokenEnvVar": "GITHUB_TOKEN",
+    "Model": "gpt-4o",
+    "SystemPrompt": "You are a helpful assistant for GitHub PR auditing..."
+  }
+}
+```
 
-The agent uses:
-- Agent instructions are hardcoded in `PrAuditChatAgent` constructor
-- MCP servers are discovered automatically by Copilot SDK (no manual configuration needed)
+| Property | Description |
+|----------|-------------|
+| `CliPath` | Path to the `@github/copilot` binary. Defaults to `"copilot"` (resolved from PATH). In Docker this is already on PATH after `npm install -g @github/copilot`. |
+| `CliUrl` | Optional URL of an already-running CLI server (e.g. sidecar container). When set, no process is spawned. |
+| `GitHubTokenEnvVar` | Name of the env var holding the GitHub PAT. The value is read from the host env at startup and injected into the CLI subprocess via `CopilotClientOptions.Environment`. |
+| `Model` | LLM model passed to each `SessionConfig` (e.g. `"gpt-4o"`, `"claude-sonnet-4-5"`). |
+| `SystemPrompt` | System message appended to every Copilot session. |
+
+**Important:** The `GitHubConnector:Mcp` section in `appsettings.json` is used exclusively by the **ingestion worker** (`McpGitHubDataSource`). The chat agent uses the Copilot SDK's own automatic MCP server discovery — those are two separate mechanisms.
 
 See `docs/mcp-tool-integration.md` for details on MCP tool discovery vs manual tool registration.
 

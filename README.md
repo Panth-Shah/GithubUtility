@@ -1,4 +1,4 @@
-﻿# 🚀 GithubUtility
+# 🚀 GithubUtility
 
 > **Internal PR audit and release reporting utility** powered by Microsoft Agent Framework and GitHub Copilot SDK
 
@@ -144,7 +144,16 @@ New team members can quickly understand:
 
 ### Prerequisites
 - .NET 8 SDK
+- **GitHub Copilot CLI** (`@github/copilot` npm package) — requires **Node.js 22 LTS**
+- A GitHub PAT with **Copilot Requests** (read + write) permission — set as `GITHUB_TOKEN`
 - (Optional) SQL database for production use
+
+### Install the GitHub Copilot CLI locally
+
+```bash
+# Install Node.js 22 LTS first, then:
+npm install -g @github/copilot
+```
 
 ### Running Locally
 
@@ -153,6 +162,9 @@ New team members can quickly understand:
 git clone https://github.com/Panth-Shah/GithubUtility.git
 cd GithubUtility
 
+# Set your GitHub token (needs "Copilot Requests" permission)
+$env:GITHUB_TOKEN = "ghp_xxxxxxxxxxxxxxxxxxxx"
+
 # Run the application
 dotnet run --project src/GithubUtility.App/GithubUtility.App.csproj
 ```
@@ -160,7 +172,7 @@ dotnet run --project src/GithubUtility.App/GithubUtility.App.csproj
 The API will be available at `https://localhost:5001` (or configured port).
 
 ### First Steps
-1. Configure your data source in [`appsettings.json`](src/GithubUtility.App/appsettings.json)
+1. Configure your data source and Copilot settings in [`appsettings.json`](src/GithubUtility.App/appsettings.json)
 2. Choose your storage provider (JSON for dev, SQL for production)
 3. Run ingestion: `POST /api/ingestion/run`
 4. Query your data via API endpoints or chat agent
@@ -223,10 +235,18 @@ Configuration is managed through [`appsettings.json`](src/GithubUtility.App/apps
 
 ```json
 {
+  "Copilot": {
+    "CliPath": "copilot",
+    "CliUrl": "",
+    "GitHubTokenEnvVar": "GITHUB_TOKEN",
+    "Model": "gpt-4o",
+    "SystemPrompt": "You are a helpful assistant for GitHub PR auditing."
+  },
   "GitHubConnector": {
-    "Mode": "Sample | Mcp",  // Choose data source
+    "Mode": "Sample | Mcp",
     "Mcp": {
-      // MCP server configuration
+      "Endpoint": "https://...",
+      "ApiKey": ""
     }
   },
   "AuditStore": {
@@ -237,11 +257,18 @@ Configuration is managed through [`appsettings.json`](src/GithubUtility.App/apps
 
 ### Configuration Options
 
-| Setting | Options | Description |
+| Setting | Options / Default | Description |
 |---------|---------|-------------|
+| `Copilot:CliPath` | `"copilot"` | Path to the `@github/copilot` CLI binary |
+| `Copilot:CliUrl` | `""` | Connect to an existing CLI server instead of spawning one |
+| `Copilot:GitHubTokenEnvVar` | `"GITHUB_TOKEN"` | Env var name holding the GitHub PAT |
+| `Copilot:Model` | `"gpt-4o"` | Model passed to each Copilot session |
+| `Copilot:SystemPrompt` | _(default)_ | System prompt prepended to every session |
 | `GitHubConnector:Mode` | `Sample` / `Mcp` | Data source: sample data or MCP server |
 | `AuditStore:Provider` | `Json` / `Sqlite` / `SqlServer` / `Postgres` | Storage backend |
-| `Scheduler:Enabled` | `true` / `false` | Enable automatic ingestion |
+| `Scheduler:IngestionIntervalMinutes` | `60` | Auto-ingestion interval |
+
+> **GitHub Token:** Create a fine-grained PAT at [github.com/settings/personal-access-tokens](https://github.com/settings/personal-access-tokens) and grant **Copilot Requests** (read + write) permission.
 
 📖 **Learn More:** [MCP Tool Integration](docs/mcp-tool-integration.md)
 
@@ -249,7 +276,19 @@ Configuration is managed through [`appsettings.json`](src/GithubUtility.App/apps
 
 ## 🚢 Deployment
 
-### Quick Deploy to Azure
+The application is packaged as a Docker image. The `Dockerfile` bakes in **Node.js 22 LTS** and the **`@github/copilot` CLI** (`npm install -g @github/copilot`) so no separate CLI installation is needed on the host.
+
+### Build and run locally with Docker
+
+```bash
+docker build -t githubutility:latest .
+
+docker run -p 8080:8080 \
+  -e GITHUB_TOKEN="ghp_xxxxxxxxxxxxxxxxxxxx" \
+  githubutility:latest
+```
+
+### Quick Deploy to Azure Container Apps
 
 ```bash
 # Use the quick deployment script
@@ -262,11 +301,12 @@ Configuration is managed through [`appsettings.json`](src/GithubUtility.App/apps
 - 🔐 **[GitHub SSO Integration](docs/github-sso-integration.md)** - Configure single sign-on
 
 ### Deployment Features
+- 🐳 Docker image with GitHub Copilot CLI baked in (Node.js 22 + `@github/copilot`)
 - ☁️ Azure Container Apps
 - 🔐 Microsoft Entra ID (Azure AD) authentication
+- 🔑 GitHub PAT supplied via Azure Key Vault secret → `GITHUB_TOKEN` env var
 - 🔄 CI/CD with GitHub Actions
 - 🏗️ Infrastructure as Code (Bicep templates)
-- 🔗 GitHub SSO integration
 
 ### Infrastructure
 
