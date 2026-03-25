@@ -9,7 +9,7 @@
 		"dockerfile": "../Dockerfile"
 	},
 	"features": {
-		"ghcr.io/devcontainer-config/features/dot-config:3": {}
+		"ghcr.io/devcontainer-config/features/dot-config:4": {}
 	}
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
